@@ -5,3 +5,4 @@ authors = ["George Roger <georger@xmos.com>"]
 
 [dependencies]
 gb_emu = { path = "gb_emu" }
+sdl2 = "0.31.0"
