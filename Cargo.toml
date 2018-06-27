@@ -1,0 +1,7 @@
+[package]
+name = "gemu"
+version = "0.1.0"
+authors = ["George Roger <georger@xmos.com>"]
+
+[dependencies]
+gb_emu = { path = "gb_emu" }

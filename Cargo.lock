@@ -1,0 +1,11 @@
+[[package]]
+name = "gb_emu"
+version = "0.1.0"
+
+[[package]]
+name = "gemu"
+version = "0.1.0"
+dependencies = [
+ "gb_emu 0.1.0",
+]
+

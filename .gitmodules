@@ -1,0 +1,3 @@
+[submodule "gb_emu"]
+	path = gb_emu
+	url = git@github.com:arp2600/gb_emu.git
