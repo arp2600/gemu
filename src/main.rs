@@ -3,7 +3,7 @@ extern crate sdl2;
 mod frame_timer;
 
 use frame_timer::FrameTimer;
-use gb_emu::Emulator;
+use gb_emu::{Command, Emulator};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -13,7 +13,6 @@ pub fn main() {
     let video_subsystem = sdl_context.video().unwrap();
 
     let scale = 5;
-
     let window = video_subsystem
         .window("rust-sdl2 demo: Video", 160 * scale, 144 * scale)
         .position_centered()
@@ -24,68 +23,58 @@ pub fn main() {
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
 
-    let mut texture = texture_creator
-        .create_texture_streaming(PixelFormatEnum::RGB24, 160, 144)
-        .unwrap();
-    // Create a checker board pattern
-    texture
-        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            for y in 0..144 {
-                for x in 0..160 {
-                    let offset = y * pitch + x * 3;
-                    let v = ((x + y) % 2) as u8 * 0xff;
-                    buffer[offset] = v;
-                    buffer[offset + 1] = v;
-                    buffer[offset + 2] = v;
-                }
-            }
-        })
-        .unwrap();
+    let mut emulator = {
+        let cartridge_rom = "../ROMs/tetris.gb";
+        let boot_rom = Some("../ROMs/dmg_rom.gb");
+        Emulator::new(boot_rom, cartridge_rom)
+    };
 
-    canvas.clear();
-    canvas.copy(&texture, None, None).unwrap();
-    canvas.present();
-
-    let mut event_pump = sdl_context.event_pump().unwrap();
-
-    let cartridge_rom = "../ROMs/tetris.gb";
-    let boot_rom = Some("../ROMs/dmg_rom.gb");
-    let mut emulator = Emulator::new(boot_rom, cartridge_rom);
-
-    'running: loop {
-        let frame_timer = FrameTimer::new(1000000000 / 60);
-
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                _ => {}
-            }
-        }
-
-        emulator.run_until_vblank();
-        texture
-            .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                let screen_buffer = emulator.get_screen_buffer();
-                for y in 0..144 {
-                    for x in 0..160 {
-                        let offset = y * pitch + x * 3;
-                        // let v = ((x + y) % 2) as u8 * 0xff;
-                        let v = screen_buffer[y * 160 + x] * 85;
-                        buffer[offset] = v;
-                        buffer[offset + 1] = v;
-                        buffer[offset + 2] = v;
-                    }
-                }
-            })
+    let draw_fn = {
+        let mut texture = texture_creator
+            .create_texture_streaming(PixelFormatEnum::RGB24, 160, 144)
             .unwrap();
 
-        canvas.copy(&texture, None, None).unwrap();
-        canvas.present();
+        let mut texture_buffer = [0; 160 * 144 * 3];
 
-        frame_timer.sleep_till_end_of_frame();
-    }
+        move |line: &[u8], line_index: u8| {
+            let y = usize::from(line_index);
+            for (x, v) in line.iter().enumerate() {
+                let offset = y * 160 * 3 + x * 3;
+                let v = *v * 85;
+                texture_buffer[offset] = v;
+                texture_buffer[offset + 1] = v;
+                texture_buffer[offset + 2] = v;
+            }
+
+            if line_index == 143 {
+                texture.update(None, &texture_buffer, 160 * 3).unwrap();
+                canvas.copy(&texture, None, None).unwrap();
+                canvas.present();
+            }
+        }
+    };
+
+    let update_fn = {
+        let mut event_pump = sdl_context.event_pump().unwrap();
+        let mut frame_timer = FrameTimer::new(59.73);
+
+        move || {
+            for event in event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => return Command::Stop,
+                    _ => {}
+                }
+            }
+
+            frame_timer.sleep_then_update();
+
+            Command::Continue
+        }
+    };
+
+    emulator.run(draw_fn, update_fn);
 }
