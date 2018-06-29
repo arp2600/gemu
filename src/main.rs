@@ -3,10 +3,24 @@ extern crate sdl2;
 mod frame_timer;
 
 use frame_timer::FrameTimer;
-use gb_emu::{Command, Emulator};
+use gb_emu::{Command, Emulator, JoyPad};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
+
+fn set_button(joypad: &mut JoyPad, keycode: Keycode, state: bool) {
+    match keycode {
+        Keycode::U => joypad.set_a(state),
+        Keycode::I => joypad.set_b(state),
+        Keycode::O => joypad.set_select(state),
+        Keycode::P => joypad.set_start(state),
+        Keycode::W => joypad.set_up(state),
+        Keycode::A => joypad.set_left(state),
+        Keycode::S => joypad.set_down(state),
+        Keycode::D => joypad.set_right(state),
+        _ => (),
+    }
+}
 
 pub fn main() {
     let sdl_context = sdl2::init().unwrap();
@@ -25,7 +39,8 @@ pub fn main() {
 
     let mut emulator = {
         let cartridge_rom = "../ROMs/tetris.gb";
-        let boot_rom = Some("../ROMs/dmg_rom.gb");
+        // let boot_rom = Some("../ROMs/dmg_rom.gb");
+        let boot_rom = None;
         Emulator::new(boot_rom, cartridge_rom)
     };
 
@@ -58,7 +73,7 @@ pub fn main() {
         let mut event_pump = sdl_context.event_pump().unwrap();
         let mut frame_timer = FrameTimer::new(59.73);
 
-        move || {
+        move |joypad: &mut JoyPad| {
             for event in event_pump.poll_iter() {
                 match event {
                     Event::Quit { .. }
@@ -66,6 +81,12 @@ pub fn main() {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => return Command::Stop,
+                    Event::KeyDown {
+                        keycode: Some(x), ..
+                    } => set_button(joypad, x, true),
+                    Event::KeyUp {
+                        keycode: Some(x), ..
+                    } => set_button(joypad, x, false),
                     _ => {}
                 }
             }
