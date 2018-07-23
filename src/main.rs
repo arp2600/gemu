@@ -3,10 +3,12 @@ extern crate sdl2;
 mod frame_timer;
 
 use frame_timer::FrameTimer;
-use gb_emu::{Command, Emulator, JoyPad};
+use gb_emu::{App, Command, Emulator, JoyPad};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::render::{Canvas, RenderTarget, Texture};
+use sdl2::EventPump;
 use std::env;
 
 fn set_button(joypad: &mut JoyPad, keycode: Keycode, state: bool) {
@@ -20,6 +22,74 @@ fn set_button(joypad: &mut JoyPad, keycode: Keycode, state: bool) {
         Keycode::S => joypad.set_down(state),
         Keycode::D => joypad.set_right(state),
         _ => (),
+    }
+}
+
+enum StopReason {
+    Quit,
+    DumpVideoMemory,
+}
+
+struct Runner<'a, F: RenderTarget> {
+    canvas: Canvas<F>,
+    texture: Texture<'a>,
+    texture_buffer: [u8; 160 * 144 * 3],
+    event_pump: EventPump,
+    frame_timer: FrameTimer,
+    stop_reason: StopReason,
+}
+
+impl<'r, F: RenderTarget> App for Runner<'r, F> {
+    fn draw_line(&mut self, line_buffer: &[u8], line_index: u8) {
+        let y = usize::from(line_index);
+        for (x, v) in line_buffer.iter().enumerate() {
+            let offset = y * 160 * 3 + x * 3;
+            let v = *v * 85;
+            self.texture_buffer[offset] = v;
+            self.texture_buffer[offset + 1] = v;
+            self.texture_buffer[offset + 2] = v;
+        }
+
+        if line_index == 143 {
+            self.texture
+                .update(None, &self.texture_buffer, 160 * 3)
+                .unwrap();
+            self.canvas.copy(&self.texture, None, None).unwrap();
+            self.canvas.present();
+        }
+    }
+
+    fn update(&mut self, joypad: &mut JoyPad) -> Command {
+        for event in self.event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
+                    self.stop_reason = StopReason::Quit;
+                    return Command::Stop;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::M),
+                    ..
+                } => {
+                    self.stop_reason = StopReason::DumpVideoMemory;
+                    return Command::Stop;
+                }
+                Event::KeyDown {
+                    keycode: Some(x), ..
+                } => set_button(joypad, x, true),
+                Event::KeyUp {
+                    keycode: Some(x), ..
+                } => set_button(joypad, x, false),
+                _ => {}
+            }
+        }
+
+        self.frame_timer.sleep_then_update();
+
+        Command::Continue
     }
 }
 
@@ -46,9 +116,6 @@ pub fn main() {
         .build()
         .unwrap();
 
-    let mut canvas = window.into_canvas().build().unwrap();
-    let texture_creator = canvas.texture_creator();
-
     let mut emulator = {
         // let cartridge_rom = "../ROMs/tetris.gb";
         // let cartridge_rom = "../ROMs/dr_mario.gb";
@@ -61,80 +128,32 @@ pub fn main() {
         let boot_rom = None;
         Emulator::new(boot_rom, &cartridge_rom)
     };
-    // emulator.set_tracing(true);
 
-    let draw_fn = {
+    let canvas = window.into_canvas().build().unwrap();
+    let texture_creator = canvas.texture_creator();
+    let mut runner = {
         let mut texture = texture_creator
             .create_texture_streaming(PixelFormatEnum::RGB24, 160, 144)
             .unwrap();
-
-        let mut texture_buffer = [0; 160 * 144 * 3];
-
-        move |line: &[u8], line_index: u8| {
-            let y = usize::from(line_index);
-            for (x, v) in line.iter().enumerate() {
-                let offset = y * 160 * 3 + x * 3;
-                match *v {
-                    0...3 => {
-                        let v = *v * 85;
-                        // let v = *v * 15;
-                        texture_buffer[offset] = v;
-                        texture_buffer[offset + 1] = v;
-                        texture_buffer[offset + 2] = v;
-                    }
-                    // 4...7 => {
-                    //     let v = ((*v - 4) * 25) + 150;
-                    //     texture_buffer[offset] = v;
-                    //     texture_buffer[offset + 1] = 0;
-                    //     texture_buffer[offset + 2] = 0;
-                    // }
-                    // 8...11 => {
-                    //     let v = ((*v - 8) * 25) + 150;
-                    //     texture_buffer[offset] = 0;
-                    //     texture_buffer[offset + 1] = 0;
-                    //     texture_buffer[offset + 2] = v;
-                    // }
-                    _ => panic!("error: bad color value!"),
-                }
-            }
-
-            if line_index == 143 {
-                texture.update(None, &texture_buffer, 160 * 3).unwrap();
-                canvas.copy(&texture, None, None).unwrap();
-                canvas.present();
-            }
-        }
-    };
-
-    let update_fn = {
         let mut event_pump = sdl_context.event_pump().unwrap();
         let mut frame_timer = FrameTimer::new(59.73);
-
-        move |joypad: &mut JoyPad| {
-            for event in event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => {
-                        return Command::Stop;
-                    }
-                    Event::KeyDown {
-                        keycode: Some(x), ..
-                    } => set_button(joypad, x, true),
-                    Event::KeyUp {
-                        keycode: Some(x), ..
-                    } => set_button(joypad, x, false),
-                    _ => {}
-                }
-            }
-
-            frame_timer.sleep_then_update();
-
-            Command::Continue
+        Runner {
+            canvas,
+            texture,
+            texture_buffer: [0; 160 * 144 * 3],
+            event_pump,
+            frame_timer,
+            stop_reason: StopReason::Quit,
         }
     };
 
-    emulator.run(draw_fn, update_fn);
+    loop {
+        emulator.run(&mut runner);
+        match runner.stop_reason {
+            StopReason::Quit => break,
+            StopReason::DumpVideoMemory => {
+                println!("Dumping video memory");
+            }
+        }
+    }
 }
