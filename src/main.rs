@@ -11,6 +11,13 @@ use sdl2::render::{Canvas, RenderTarget, Texture};
 use sdl2::EventPump;
 use std::env;
 
+pub const VRAM_START: usize = 0x8000;
+pub const VRAM_END: usize = 0x9fff;
+pub const OAM_START: usize = 0xfe00;
+pub const OAM_END: usize = 0xfe9f;
+pub const IO_START: usize = 0xff00;
+pub const IO_END: usize = 0xff7f;
+
 fn set_button(joypad: &mut JoyPad, keycode: Keycode, state: bool) {
     match keycode {
         Keycode::U => joypad.set_a(state),
@@ -152,7 +159,26 @@ pub fn main() {
         match runner.stop_reason {
             StopReason::Quit => break,
             StopReason::DumpVideoMemory => {
-                println!("Dumping video memory");
+                print!("VRAM:");
+                for i in VRAM_START..=VRAM_END {
+                    let v = emulator.read_memory(i as u16);
+                    print!(" {:02x}", v);
+                }
+                println!("");
+
+                print!("OAM:");
+                for i in OAM_START..=OAM_END {
+                    let v = emulator.read_memory(i as u16);
+                    print!(" {:02x}", v);
+                }
+                println!("");
+
+                print!("IO:");
+                for i in IO_START..=IO_END {
+                    let v = emulator.read_memory(i as u16);
+                    print!(" {:02x}", v);
+                }
+                println!("");
             }
         }
     }
