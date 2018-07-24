@@ -44,6 +44,7 @@ struct Runner<'a, F: RenderTarget> {
     event_pump: EventPump,
     frame_timer: FrameTimer,
     stop_reason: StopReason,
+    frame_count: u64,
 }
 
 impl<'r, F: RenderTarget> App for Runner<'r, F> {
@@ -67,6 +68,7 @@ impl<'r, F: RenderTarget> App for Runner<'r, F> {
     }
 
     fn update(&mut self, joypad: &mut JoyPad) -> Command {
+        self.frame_count += 1;
         for event in self.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -151,6 +153,7 @@ pub fn main() {
             event_pump,
             frame_timer,
             stop_reason: StopReason::Quit,
+            frame_count: 0,
         }
     };
 
@@ -182,4 +185,6 @@ pub fn main() {
             }
         }
     }
+
+    println!("Ran for {} frames", runner.frame_count);
 }
