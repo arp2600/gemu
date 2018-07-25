@@ -111,8 +111,6 @@ pub fn main() {
     }
 
     let cartridge_rom = &args[1];
-    // println!("args: {:?}", args);
-    // return;
 
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
@@ -125,15 +123,14 @@ pub fn main() {
         .build()
         .unwrap();
 
+    // let background_window = video_subsystem
+    //     .window("rust-sdl2 demo: Video", 160, 144)
+    //     .position_centered()
+    //     .opengl()
+    //     .build()
+    //     .unwrap();
+
     let mut emulator = {
-        // let cartridge_rom = "../ROMs/tetris.gb";
-        // let cartridge_rom = "../ROMs/dr_mario.gb";
-        // let cartridge_rom = "../ROMs/rocky_and_bullwinkle.gb";
-        // let cartridge_rom = "../ROMs/super_mario_land_1.1.gb";
-        // let cartridge_rom = "../ROMs/ultima_runes_of_virtue.gb";
-        // let cartridge_rom = "../ROMs/pokemon_blue.gb";
-        // let cartridge_rom = "gb_emu/gb-test-roms/cpu_instrs/cpu_instrs.gb";
-        // let boot_rom = Some("../ROMs/dmg_rom.gb");
         let boot_rom = None;
         Emulator::new(boot_rom, &cartridge_rom)
     };
