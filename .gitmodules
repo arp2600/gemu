@@ -1,3 +1,6 @@
 [submodule "gb_emu"]
 	path = gb_emu
 	url = git@github.com:arp2600/gb_emu.git
+[submodule "gb_synth"]
+	path = gb_synth
+	url = git@github.com:arp2600/gb_synth.git
