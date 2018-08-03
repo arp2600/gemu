@@ -5,4 +5,8 @@ authors = ["George Roger <georger@xmos.com>"]
 
 [dependencies]
 gb_emu = { path = "gb_emu" }
+gb_synth = { path = "../gb_synth" }
 sdl2 = "0.31.0"
+
+[profile.release]
+lto = true

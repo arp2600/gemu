@@ -1,9 +1,11 @@
 extern crate gb_emu;
+extern crate gb_synth;
 extern crate sdl2;
 mod frame_timer;
 
 use frame_timer::FrameTimer;
-use gb_emu::{App, Command, Emulator, JoyPad};
+use gb_emu::{App, AudioAction, Command, Emulator, JoyPad};
+use gb_synth::{AudioServer, SynthController};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
@@ -37,7 +39,7 @@ enum StopReason {
     DumpVideoMemory,
 }
 
-struct Runner<'a, F: RenderTarget> {
+struct Runner<'a, 'b, F: RenderTarget> {
     canvas: Canvas<F>,
     texture: Texture<'a>,
     texture_buffer: [u8; 160 * 144 * 3],
@@ -45,9 +47,10 @@ struct Runner<'a, F: RenderTarget> {
     frame_timer: FrameTimer,
     stop_reason: StopReason,
     frame_count: u64,
+    synth: SynthController<'b>,
 }
 
-impl<'r, F: RenderTarget> App for Runner<'r, F> {
+impl<'r, 's, F: RenderTarget> App for Runner<'r, 's, F> {
     fn draw_line(&mut self, line_buffer: &[u8], line_index: u8) {
         let y = usize::from(line_index);
         for (x, v) in line_buffer.iter().enumerate() {
@@ -100,6 +103,15 @@ impl<'r, F: RenderTarget> App for Runner<'r, F> {
 
         Command::Continue
     }
+
+    fn update_audio(&mut self, action: AudioAction) {
+        match action {
+            AudioAction::SetFrequency(chan, freq) => {
+                self.synth.set_freq(chan, freq);
+            }
+            AudioAction::RestartSound(_) => (),
+        }
+    }
 }
 
 pub fn main() {
@@ -123,12 +135,8 @@ pub fn main() {
         .build()
         .unwrap();
 
-    // let background_window = video_subsystem
-    //     .window("rust-sdl2 demo: Video", 160, 144)
-    //     .position_centered()
-    //     .opengl()
-    //     .build()
-    //     .unwrap();
+    let mut audio_server = AudioServer::new();
+    let synth = audio_server.get_synth_controller();
 
     let mut emulator = {
         let boot_rom = None;
@@ -151,6 +159,7 @@ pub fn main() {
             frame_timer,
             stop_reason: StopReason::Quit,
             frame_count: 0,
+            synth: synth,
         }
     };
 
