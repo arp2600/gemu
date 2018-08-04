@@ -104,7 +104,7 @@ impl<'r, 's, F: RenderTarget> App for Runner<'r, 's, F> {
         Command::Continue
     }
 
-    fn update_audio(&mut self, action: AudioAction) {
+    fn update_audio(&mut self, action: AudioAction, _cpu_time: f64) {
         match action {
             AudioAction::SetFrequency(chan, freq) => {
                 self.synth.set_freq(chan, freq);
