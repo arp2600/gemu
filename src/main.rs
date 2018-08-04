@@ -109,6 +109,9 @@ impl<'r, 's, F: RenderTarget> App for Runner<'r, 's, F> {
             AudioAction::SetFrequency(chan, freq) => {
                 self.synth.set_freq(chan, freq);
             }
+            AudioAction::SetAmplitude(chan, amp) => {
+                self.synth.set_amp(chan, amp);
+            }
             AudioAction::RestartSound(_) => (),
         }
     }
