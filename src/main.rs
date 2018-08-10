@@ -112,6 +112,9 @@ impl<'r, 's, F: RenderTarget> App for Runner<'r, 's, F> {
             AudioAction::SetAmplitude(chan, amp) => {
                 self.synth.set_amp(chan, amp);
             }
+            AudioAction::SetPulseWidth(chan, width) => {
+                self.synth.set_pulse_width(chan, width);
+            }
             AudioAction::RestartSound(_) => (),
         }
     }
