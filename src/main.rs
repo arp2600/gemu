@@ -115,9 +115,14 @@ impl<'r, 's, F: RenderTarget> App for Runner<'r, 's, F> {
             AudioAction::SetPulseWidth(chan, width) => {
                 self.synth.set_pulse_width(chan, width);
             }
-            AudioAction::RestartSound(_) => (),
+            AudioAction::RestartSound(chan) => {
+                self.synth.reset_channel(chan);
+            }
             AudioAction::SetWavetable(index, value) => {
                 self.synth.set_wavetable(index, value);
+            }
+            AudioAction::SetEnvelope(chan, amp, duration) => {
+                self.synth.set_envelope(chan, amp, duration);
             }
         }
     }
